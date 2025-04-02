@@ -1,70 +1,124 @@
-# @ratesspot/prisma-api-gen
+# 🛠 Prisma Module Generator
 
-Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema.
+This is a CLI tool for scaffolding module folders (service, controller, routes, schema) based on models in your `schema.prisma`. It supports optional grouping of models using `@group` comments for better folder organization.
 
-## 🚀 Usage (CLI)
+---
+
+## 📦 Installation
+
+Run this in your project root:
 
 ```bash
-npx prisma-api-gen --all --output src/modules
+npm link
+```
+
+> ⚠️ If you see an `EEXIST` error, remove the existing file:
+>
+> ```bash
+> sudo rm /usr/local/bin/generate-modules
+> npm link
+> ```
+
+---
+
+## 🚀 Usage
+
+```bash
+generate-modules [options]
 ```
 
 ### Options
 
-| Flag            | Description                                               |
-|-----------------|-----------------------------------------------------------|
-| `--model`       | Comma-separated model names to generate (`User,Booking`)  |
-| `--all`         | Generate all models in schema                             |
-| `--new`         | Generate only models that don’t have folders              |
-| `--force`       | Overwrite existing files                                  |
-| `--purgeRoutes` | Regenerate all `routes.ts` files                          |
-| `--withTests`   | Generate Vitest service & controller test files           |
-| `--withDocs`    | Generate OpenAPI doc stubs                                |
-| `--dryRun`      | Preview files without writing                             |
+| Option              | Type      | Default     | Description                                                        |
+|---------------------|-----------|-------------|--------------------------------------------------------------------|
+| `--model`           | string    |             | Generate module for a specific model name                         |
+| `--all`             | boolean   | false       | Generate modules for **all** models in `schema.prisma`            |
+| `--new`             | boolean   | false       | Generate modules only for models without existing folders         |
+| `--output`          | string    | `src/modules` | Target folder for module generation                              |
+| `--withController`  | boolean   | true        | Whether to generate controller file                               |
+| `--withRoutes`      | boolean   | true        | Whether to generate routes file                                   |
+| `--withSchema`      | boolean   | true        | Whether to generate Zod schema file                               |
+| `--force`           | boolean   | false       | Overwrite existing files                                          |
+| `--dryRun`          | boolean   | false       | Simulate generation without writing any files                     |
 
 ---
 
-## 🔌 Prisma Generator
+## 🧩 Grouping Modules
 
-To run as a Prisma plugin:
+Add a comment above your Prisma model like this:
 
 ```prisma
-generator modules {
-  provider = "prisma-api-gen"
-  output   = "./src/modules"
+/// @group billing
+model Invoice {
+  id        String   @id @default(uuid())
+  total     Float
+  createdAt DateTime @default(now())
 }
 ```
 
-Then run:
+This will generate a folder like:
 
-```bash
-npx prisma generate
+```
+src/modules/billing/invoice/
 ```
 
-Each model will generate a folder in the specified output directory.
+And update your `src/modules/routes.ts` automatically to include:
 
----
-
-## 🧪 Testing Support
-
-- Generates service + controller test stubs
-- Compatible with [Vitest](https://vitest.dev/)
-
----
-
-## 📚 Docs (WIP)
-
-- Swagger-compatible OpenAPI generation coming soon
-- Postman collection export planned
-
----
-
-## 🛠 Dev
-
-```bash
-npm install
-npm run build
+```ts
+import invoiceRoutes from './billing/invoice/invoice.routes';
+router.use('/invoice', invoiceRoutes);
 ```
 
 ---
 
-MIT © 2025 Ratesspot
+## 💡 Examples
+
+Generate all modules:
+
+```bash
+generate-modules --all
+```
+
+Generate only missing ones:
+
+```bash
+generate-modules --new
+```
+
+Generate a single model:
+
+```bash
+generate-modules --model Booking
+```
+
+Dry run (preview changes):
+
+```bash
+generate-modules --all --dryRun
+```
+
+Force overwrite:
+
+```bash
+generate-modules --model Booking --force
+```
+
+---
+
+## 📁 Output Structure
+
+Each generated module includes:
+
+```
+model/
+├── model.service.ts
+├── model.controller.ts     (optional)
+├── model.routes.ts         (optional)
+└── model.schema.ts         (optional)
+```
+
+---
+
+## 📜 License
+
+MIT
