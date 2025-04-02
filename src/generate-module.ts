@@ -61,27 +61,29 @@ const { model, all, new: onlyNew, output, withController, withRoutes, withSchema
 
 const SCHEMA_PATH = path.join(process.cwd(), 'prisma/schema.prisma');
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-const modelRegex = /model\s+(\w+)\s+{/g;
-const modelNames: string[] = [];
+const modelRegex = /(?:\/\/\/\s*@group\s+(\w+)\s*\n)?model\s+(\w+)\s+{/g;
+
+const modelInfos: { name: string; group?: string }[] = [];
 let match;
 while ((match = modelRegex.exec(schema)) !== null) {
-  modelNames.push(match[1]);
+  const [, group, name] = match;
+  modelInfos.push({ name, group });
 }
 
 const modelsToGenerate = model
-  ? [model]
+  ? modelInfos.filter((m) => m.name === model)
   : all
-  ? modelNames
+  ? modelInfos
   : onlyNew
-  ? modelNames.filter((m) => !fs.existsSync(path.join(process.cwd(), output, m.toLowerCase())))
+  ? modelInfos.filter((m) => !fs.existsSync(path.join(process.cwd(), output, ...(m.group ? [m.group] : []), m.name.toLowerCase())))
   : [];
 
 const rootRoutePath = path.join(process.cwd(), output, 'routes.ts');
 
-const generateModule = (modelName: string) => {
+const generateModule = ({ name: modelName, group }: { name: string; group?: string }) => {
   const lcModel = modelName.charAt(0).toLowerCase() + modelName.slice(1);
   const ucModel = modelName.charAt(0).toUpperCase() + modelName.slice(1);
-  const moduleDir = path.join(process.cwd(), output, lcModel);
+  const moduleDir = path.join(process.cwd(), output, ...(group ? [group] : []), lcModel);
 
   if (dryRun) {
     console.log(`📝 [Dry Run] Would create module directory: ${moduleDir}`);
@@ -204,7 +206,7 @@ export const ${ucModel}UpdateSchema = z.object({
   }
 
   if (!dryRun && withRoutes) {
-    const routeImport = `import ${lcModel}Routes from './${lcModel}/${lcModel}.routes';`;
+    const routeImport = `import ${lcModel}Routes from './${[group, lcModel].filter(Boolean).join('/')}/${lcModel}.routes';`;
     const routeUse = `router.use('/${lcModel}', ${lcModel}Routes);`;
 
     let rootContent = '';
@@ -227,9 +229,9 @@ export const ${ucModel}UpdateSchema = z.object({
   }
 
   if (dryRun) {
-    console.log(`\n🎉 [Dry Run] ${modelName} module would be scaffolded in ${output}/${lcModel}`);
+    console.log(`\n🎉 [Dry Run] ${modelName} module would be scaffolded in ${output}/${group ? group + '/' : ''}${lcModel}`);
   } else {
-    console.log(`\n🎉 ${modelName} module scaffolded successfully in ${output}/${lcModel}`);
+    console.log(`\n🎉 ${modelName} module scaffolded successfully in ${output}/${group ? group + '/' : ''}${lcModel}`);
   }
 };
 
