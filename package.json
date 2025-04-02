@@ -1,6 +1,8 @@
 {
   "name": "prisma-api-gen",
   "version": "1.0.1",
+  "license": "MIT",
+  "author": "Nimisoere Tekena-Lawson",
   "description": "Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema",
   "main": "bin/generate-module.js",
   "bin": {
