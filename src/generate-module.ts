@@ -1,202 +1,236 @@
 #!/usr/bin/env ts-node
-// @ts-check
 
 import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const SCHEMA_PATH = path.join(__dirname, '../prisma/schema.prisma');
-const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-
-const modelRegex = /(?:\/\/\/\s*@group\s*(\w+)\s*\n)?model\s+(\w+)\s+{/g;
-const modelNames: string[] = [];
-const groupings: Record<string, string> = {};
-
-let match;
-while ((match = modelRegex.exec(schema)) !== null) {
-  const [, group, modelName] = match;
-  modelNames.push(modelName);
-  if (group) {
-    groupings[modelName] = group;
-  }
-}
 
 const argv = yargs(hideBin(process.argv))
-  .option('model', { type: 'string', describe: 'Generate module for one or more models (comma-separated)' })
-  .option('all', { type: 'boolean', describe: 'Generate modules for all models in schema.prisma' })
-  .option('new', { type: 'boolean', describe: 'Generate modules only for models without an existing folder' })
-  .option('output', { type: 'string', default: 'src/modules', describe: 'Output directory for generated module' })
-  .option('withController', { type: 'boolean', default: true, describe: 'Generate controller file' })
-  .option('withRoutes', { type: 'boolean', default: true, describe: 'Generate routes file' })
-  .option('withSchema', { type: 'boolean', default: true, describe: 'Generate Zod schema file' })
-  .option('withCustom', { type: 'boolean', default: true, describe: 'Generate custom controller and route files' })
-  .option('withTests', { type: 'boolean', default: true, describe: 'Generate test files for services and controllers' })
-  .option('withDocs', { type: 'boolean', default: true, describe: 'Generate Swagger-compatible OpenAPI docs' })
-  .option('force', { type: 'boolean', default: false, describe: 'Overwrite existing files if they exist' })
-  .option('dryRun', { type: 'boolean', default: false, describe: 'Show what would be created without writing files' })
-  .option('list', { type: 'boolean', default: false, describe: 'List groups and models only without generating files' })
-  .option('purgeRoutes', { type: 'boolean', default: false, describe: 'Remove existing routes.ts files before regenerating' })
+  .option('model', {
+    type: 'string',
+    describe: 'Generate module for a specific model',
+  })
+  .option('all', {
+    type: 'boolean',
+    describe: 'Generate modules for all models in schema.prisma',
+  })
+  .option('new', {
+    type: 'boolean',
+    describe: 'Generate modules only for models without an existing folder',
+  })
+  .option('output', {
+    type: 'string',
+    default: 'src/modules',
+    describe: 'Output directory for generated module',
+  })
+  .option('withController', {
+    type: 'boolean',
+    default: true,
+    describe: 'Generate controller file',
+  })
+  .option('withRoutes', {
+    type: 'boolean',
+    default: true,
+    describe: 'Generate routes file',
+  })
+  .option('withSchema', {
+    type: 'boolean',
+    default: true,
+    describe: 'Generate Zod schema file',
+  })
+  .option('force', {
+    type: 'boolean',
+    default: false,
+    describe: 'Overwrite existing files if they exist',
+  })
+  .option('dryRun', {
+    type: 'boolean',
+    default: false,
+    describe: 'Show what would be created without writing files',
+  })
   .check((argv) => {
-    if (!argv.model && !argv.all && !argv.new && !argv.list) {
-      throw new Error('You must provide either --model, --all, --new, or --list');
-    }
-    if (argv.model) {
-      const requested = argv.model.split(',').map((m) => m.trim());
-      const invalid = requested.filter((m) => !modelNames.includes(m));
-      if (invalid.length > 0) {
-        throw new Error(`Invalid model name(s): ${invalid.join(', ')}`);
-      }
+    if (!argv.model && !argv.all && !argv.new) {
+      throw new Error('You must provide either --model, --all, or --new');
     }
     return true;
   })
   .help()
   .parseSync();
 
-const { model, all, new: onlyNew, output, withController, withRoutes, withSchema, withCustom, withTests, withDocs, force, dryRun, list, purgeRoutes } = argv;
+const { model, all, new: onlyNew, output, withController, withRoutes, withSchema, force, dryRun } = argv;
+
+const SCHEMA_PATH = path.join(process.cwd(), 'prisma/schema.prisma');
+const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
+const modelRegex = /model\s+(\w+)\s+{/g;
+const modelNames: string[] = [];
+let match;
+while ((match = modelRegex.exec(schema)) !== null) {
+  modelNames.push(match[1]);
+}
 
 const modelsToGenerate = model
-  ? model.split(',').map((m) => m.trim())
+  ? [model]
   : all
   ? modelNames
   : onlyNew
-  ? modelNames.filter((m) => {
-      const group = groupings[m] || '';
-      return !fs.existsSync(path.join(__dirname, '..', output, group, m.toLowerCase()));
-    })
+  ? modelNames.filter((m) => !fs.existsSync(path.join(process.cwd(), output, m.toLowerCase())))
   : [];
 
-const groupedModels: Record<string, string[]> = {};
-modelsToGenerate.forEach((modelName) => {
-  const group = groupings[modelName] || 'ungrouped';
-  groupedModels[group] = groupedModels[group] || [];
-  groupedModels[group].push(modelName);
-});
+const rootRoutePath = path.join(process.cwd(), output, 'routes.ts');
 
-console.log('\n📦 Modules to generate by group:');
-Object.entries(groupedModels).forEach(([group, models]) => {
-  console.log(`\n🔹 ${group}`);
-  models.forEach((m) => console.log(`   - ${m}`));
-});
+const generateModule = (modelName: string) => {
+  const lcModel = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+  const ucModel = modelName.charAt(0).toUpperCase() + modelName.slice(1);
+  const moduleDir = path.join(process.cwd(), output, lcModel);
 
-if (list) process.exit(0);
-
-const rootRoutePath = path.join(__dirname, '..', output, 'routes.ts');
-if (purgeRoutes && fs.existsSync(rootRoutePath)) {
-  fs.rmSync(rootRoutePath);
-  console.log('🧹 Removed root routes.ts');
-}
-
-const rootImports: string[] = [];
-const rootUses: string[] = [];
-
-Object.entries(groupedModels).forEach(([group, modelList]) => {
-  const groupRouteFile = path.join(__dirname, '..', output, group, 'routes.ts');
-  if (purgeRoutes && fs.existsSync(groupRouteFile)) {
-    fs.rmSync(groupRouteFile);
-    console.log(`🧹 Removed ${group}/routes.ts`);
+  if (dryRun) {
+    console.log(`📝 [Dry Run] Would create module directory: ${moduleDir}`);
+  } else if (!fs.existsSync(moduleDir)) {
+    fs.mkdirSync(moduleDir, { recursive: true });
+    console.log(`✅ Created module directory: ${moduleDir}`);
   }
 
-  const importStatements: string[] = [];
-  const useStatements: string[] = [];
+  const writeFile = (filename: string, content: string) => {
+    const filePath = path.join(moduleDir, filename);
+    if (dryRun) {
+      console.log(`📝 [Dry Run] Would write: ${filename}`);
+      return;
+    }
+    if (fs.existsSync(filePath) && !force) {
+      console.log(`⚠️ Skipped (already exists): ${filename}`);
+      return;
+    }
+    fs.writeFileSync(filePath, content);
+    console.log(`${fs.existsSync(filePath) ? '♻️ Overwrote' : '✅ Created'}: ${filename}`);
+  };
 
-  modelList.forEach((modelName) => {
-    const lcModel = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-    importStatements.push(`import ${lcModel}Routes from './${lcModel}/${lcModel}.routes';`);
-    useStatements.push(`router.use('/${lcModel}', ${lcModel}Routes);`);
+  writeFile(
+    `${lcModel}.service.ts`,
+    `import prisma from '@/clients/prisma';
+import { Prisma } from '@prisma/client';
 
-    if (withTests) {
-      const testFolder = path.join(__dirname, '..', output, group, lcModel);
-      const serviceTest = path.join(testFolder, `${lcModel}.service.test.ts`);
-      const controllerTest = path.join(testFolder, `${lcModel}.controller.test.ts`);
+type ${ucModel}CreateInput = Prisma.${ucModel}CreateInput;
+type ${ucModel}UpdateInput = Prisma.${ucModel}UpdateInput;
 
-      if (!dryRun && (!fs.existsSync(serviceTest) || force)) {
-        fs.writeFileSync(
-          serviceTest,
-          `import { describe, it, expect } from 'vitest';
-import * as service from './${lcModel}.service';
+export const create${ucModel} = async (data: ${ucModel}CreateInput) => {
+  return prisma.${lcModel}.create({ data });
+};
 
-describe('${lcModel} service', () => {
-  it('should have create function', () => {
-    expect(typeof service.create${modelName}).toBe('function');
-  });
-});`
-        );
-        console.log(`✅ Created test: ${serviceTest}`);
-      }
+export const get${ucModel}ById = async (id: string) => {
+  return prisma.${lcModel}.findUnique({ where: { id } });
+};
 
-      if (!dryRun && (!fs.existsSync(controllerTest) || force)) {
-        fs.writeFileSync(
-          controllerTest,
-          `import { describe, it, expect } from 'vitest';
+export const list${ucModel}s = async (filter: any = {}) => {
+  return prisma.${lcModel}.findMany({ where: filter, orderBy: { createdAt: 'desc' } });
+};
+
+export const update${ucModel} = async (id: string, data: ${ucModel}UpdateInput) => {
+  return prisma.${lcModel}.update({ where: { id }, data });
+};
+
+export const delete${ucModel} = async (id: string) => {
+  return prisma.${lcModel}.update({ where: { id }, data: { deletedAt: new Date() } });
+};
+`
+  );
+
+  if (withController) {
+    writeFile(
+      `${lcModel}.controller.ts`,
+      `import * as ${ucModel}Service from './${lcModel}.service';
+import { Request, Response } from 'express';
+
+export const create = async (req: Request, res: Response) => {
+  const result = await ${ucModel}Service.create${ucModel}(req.body);
+  res.json(result);
+};
+
+export const list = async (_req: Request, res: Response) => {
+  const results = await ${ucModel}Service.list${ucModel}s();
+  res.json(results);
+};
+
+export const getById = async (req: Request, res: Response) => {
+  const result = await ${ucModel}Service.get${ucModel}ById(req.params.id);
+  res.json(result);
+};
+
+export const update = async (req: Request, res: Response) => {
+  const result = await ${ucModel}Service.update${ucModel}(req.params.id, req.body);
+  res.json(result);
+};
+
+export const deleteOne = async (req: Request, res: Response) => {
+  const result = await ${ucModel}Service.delete${ucModel}(req.params.id);
+  res.json(result);
+};
+`
+    );
+  }
+
+  if (withRoutes) {
+    writeFile(
+      `${lcModel}.routes.ts`,
+      `import express from 'express';
 import * as controller from './${lcModel}.controller';
 
-describe('${lcModel} controller', () => {
-  it('should have create method', () => {
-    expect(typeof controller.create).toBe('function');
-  });
-});`
-        );
-        console.log(`✅ Created test: ${controllerTest}`);
-      }
-    }
-  });
-
-  const groupMiddlewarePath = `./${group}/middleware`;
-  const middlewareImport = `import { apply${group.charAt(0).toUpperCase() + group.slice(1)}Middleware } from '${groupMiddlewarePath}';`;
-  const middlewareUse = `apply${group.charAt(0).toUpperCase() + group.slice(1)}Middleware(router);`;
-
-  const groupRouteContent = `import express from 'express';
-${middlewareImport}
-${importStatements.join('\n')}
-
 const router = express.Router();
 
-${middlewareUse}
-${useStatements.join('\n')}
+router.get('/', controller.list);
+router.post('/', controller.create);
+router.get('/:id', controller.getById);
+router.put('/:id', controller.update);
+router.delete('/:id', controller.deleteOne);
 
-export default router;`;
-
-  const groupMiddlewareFile = path.join(__dirname, '..', output, group, 'middleware.ts');
-  if (!fs.existsSync(groupMiddlewareFile)) {
-    fs.writeFileSync(
-      groupMiddlewareFile,
-      `import { Router } from 'express';
-
-export const apply${group.charAt(0).toUpperCase() + group.slice(1)}Middleware = (router: Router) => {
-  // router.use(authMiddleware); // example
-};`
+export default router;
+`
     );
-    console.log(`✅ Created middleware stub: ${groupMiddlewareFile}`);
   }
 
-  if (!dryRun) {
-    fs.writeFileSync(groupRouteFile, groupRouteContent);
-    console.log(`✅ Group-level route file created: ${groupRouteFile}`);
-  } else {
-    console.log(`📝 [Dry Run] Would create group-level route file: ${groupRouteFile}`);
-  }
+  if (withSchema) {
+    writeFile(
+      `${lcModel}.schema.ts`,
+      `import { z } from 'zod';
 
-  rootImports.push(`import ${group}Routes from './${group}/routes';`);
-  rootUses.push(`router.use('/${group}', ${group}Routes);`);
+export const ${ucModel}CreateSchema = z.object({
+  // Add fields based on your model
 });
 
-const rootRouteContent = `import express from 'express';
-${rootImports.join('\n')}
+export const ${ucModel}UpdateSchema = z.object({
+  // Add fields based on your model
+});
+`
+    );
+  }
 
-const router = express.Router();
+  if (!dryRun && withRoutes) {
+    const routeImport = `import ${lcModel}Routes from './${lcModel}/${lcModel}.routes';`;
+    const routeUse = `router.use('/${lcModel}', ${lcModel}Routes);`;
 
-${rootUses.join('\n')}
+    let rootContent = '';
+    if (fs.existsSync(rootRoutePath)) {
+      rootContent = fs.readFileSync(rootRoutePath, 'utf8');
+    } else {
+      rootContent = `import express from 'express';\nconst router = express.Router();\n\nexport default router;\n`;
+    }
 
-export default router;`;
+    if (!rootContent.includes(routeImport)) {
+      rootContent = `${routeImport}\n${rootContent}`;
+    }
 
-if (!dryRun) {
-  fs.writeFileSync(rootRoutePath, rootRouteContent);
-  console.log(`✅ Root route file created: ${rootRoutePath}`);
-} else {
-  console.log(`📝 [Dry Run] Would create root route file: ${rootRoutePath}`);
-}
+    if (!rootContent.includes(routeUse)) {
+      rootContent = rootContent.replace('export default router;', `${routeUse}\n\nexport default router;`);
+    }
+
+    fs.writeFileSync(rootRoutePath, rootContent);
+    console.log(`✅ Updated root route file: ${rootRoutePath}`);
+  }
+
+  if (dryRun) {
+    console.log(`\n🎉 [Dry Run] ${modelName} module would be scaffolded in ${output}/${lcModel}`);
+  } else {
+    console.log(`\n🎉 ${modelName} module scaffolded successfully in ${output}/${lcModel}`);
+  }
+};
+
+modelsToGenerate.forEach(generateModule);
