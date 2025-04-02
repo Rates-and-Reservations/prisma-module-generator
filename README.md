@@ -1,4 +1,4 @@
-# 🛠 Prisma Module Generator
+# 🛠 Prisma API Generator
 
 This is a CLI tool for scaffolding module folders (service, controller, routes, schema) based on models in your `schema.prisma`. It supports optional grouping of models using `@group` comments for better folder organization.
 
@@ -15,7 +15,7 @@ npm link
 > ⚠️ If you see an `EEXIST` error, remove the existing file:
 >
 > ```bash
-> sudo rm /usr/local/bin/generate-modules
+> sudo rm /usr/local/bin/npx prisma-api-gen
 > npm link
 > ```
 
@@ -24,7 +24,7 @@ npm link
 ## 🚀 Usage
 
 ```bash
-generate-modules [options]
+npx prisma-api-gen [options]
 ```
 
 ### Options
@@ -76,31 +76,31 @@ router.use('/invoice', invoiceRoutes);
 Generate all modules:
 
 ```bash
-generate-modules --all
+npx prisma-api-gen --all
 ```
 
 Generate only missing ones:
 
 ```bash
-generate-modules --new
+npx prisma-api-gen --new
 ```
 
 Generate a single model:
 
 ```bash
-generate-modules --model Booking
+npx prisma-api-gen --model Booking
 ```
 
 Dry run (preview changes):
 
 ```bash
-generate-modules --all --dryRun
+npx prisma-api-gen --all --dryRun
 ```
 
 Force overwrite:
 
 ```bash
-generate-modules --model Booking --force
+npx prisma-api-gen --model Booking --force
 ```
 
 ---
