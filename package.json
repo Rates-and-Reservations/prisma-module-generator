@@ -1,0 +1,37 @@
+{
+  "name": "prisma-module-generator",
+  "version": "1.0.0",
+  "description": "Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema",
+  "main": "bin/generate-module.js",
+  "bin": {
+    "generate-modules": "./bin/generate-module.js"
+  },
+  "prisma": {
+    "generator": {
+      "provider": "prisma-module-generator"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/generate-module.ts --out-dir bin --format esm --target node18 --minify",
+    "prepare": "npm run build"
+  },
+  "files": [
+    "bin",
+    "generator",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^22.13.17",
+    "@types/yargs": "^17.0.33",
+    "tsup": "^7.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@prisma/generator-helper": "^6.5.0",
+    "yargs": "^17.7.2"
+  }
+}
