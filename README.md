@@ -119,6 +119,28 @@ model/
 
 ---
 
+## ➕ Custom Routes
+
+You can define additional routes per model by creating a `custom-routes.json` file in your project root.
+
+Example:
+
+```json
+{
+  "User": [
+    { "name": "disable", "method": "post", "path": "/:id/disable", "description": "Disable a user" }
+  ]
+}
+```
+
+This will generate:
+
+* A new controller.disable method
+
+* A route in router.post('/:id/disable', controller.disable);
+
+---
+
 ## 📜 License
 
 MIT
