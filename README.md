@@ -1,11 +1,11 @@
-# @ratesspot/prisma-api-generator
+# @ratesspot/prisma-api-gen
 
 Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema.
 
 ## 🚀 Usage (CLI)
 
 ```bash
-npx prisma-api-generator --all --output src/modules
+npx prisma-api-gen --all --output src/modules
 ```
 
 ### Options
@@ -29,7 +29,7 @@ To run as a Prisma plugin:
 
 ```prisma
 generator modules {
-  provider = "prisma-api-generator"
+  provider = "prisma-api-gen"
   output   = "./src/modules"
 }
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "prisma-api-generator",
+  "name": "prisma-api-gen",
   "version": "1.0.0",
   "description": "Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema",
   "main": "bin/generate-module.js",
@@ -8,7 +8,7 @@
   },
   "prisma": {
     "generator": {
-      "provider": "prisma-api-generator"
+      "provider": "prisma-api-gen"
     }
   },
   "scripts": {
