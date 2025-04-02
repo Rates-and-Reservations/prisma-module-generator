@@ -48,21 +48,24 @@ const argv = yargs(hideBin(process.argv))
     default: false,
     describe: 'Show what would be created without writing files',
   })
+  .help()
   .check((argv) => {
     if (!argv.model && !argv.all && !argv.new) {
       throw new Error('You must provide either --model, --all, or --new');
     }
     return true;
   })
-  .help()
   .parseSync();
 
 const { model, all, new: onlyNew, output, withController, withRoutes, withSchema, force, dryRun } = argv;
 
 const SCHEMA_PATH = path.join(process.cwd(), 'prisma/schema.prisma');
+const CUSTOM_ROUTES_PATH = path.join(process.cwd(), 'custom-routes.json');
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-const modelRegex = /(?:\/\/\/\s*@group\s+(\w+)\s*\n)?model\s+(\w+)\s+{/g;
+const customRoutes: Record<string, { name: string; method: string; path: string; description?: string }[]> =
+  fs.existsSync(CUSTOM_ROUTES_PATH) ? JSON.parse(fs.readFileSync(CUSTOM_ROUTES_PATH, 'utf8')) : {};
 
+const modelRegex = /(?:\/\/\/\s*@group\s+(\w+)\s*\n)?model\s+(\w+)\s+{/g;
 const modelInfos: { name: string; group?: string }[] = [];
 let match;
 while ((match = modelRegex.exec(schema)) !== null) {
@@ -137,9 +140,7 @@ export const delete${ucModel} = async (id: string) => {
   );
 
   if (withController) {
-    writeFile(
-      `${lcModel}.controller.ts`,
-      `import * as ${ucModel}Service from './${lcModel}.service';
+    let controllerContent = `import * as ${ucModel}Service from './${lcModel}.service';
 import { Request, Response } from 'express';
 
 export const create = async (req: Request, res: Response) => {
@@ -166,14 +167,23 @@ export const deleteOne = async (req: Request, res: Response) => {
   const result = await ${ucModel}Service.delete${ucModel}(req.params.id);
   res.json(result);
 };
-`
-    );
+`;
+
+    customRoutes[modelName]?.forEach(({ name, description }) => {
+      controllerContent += `
+
+/** ${description || name} */
+export const ${name} = async (req: Request, res: Response) => {
+  // TODO: Implement ${name}
+  res.json({ message: '${name} not implemented' });
+};`;
+    });
+
+    writeFile(`${lcModel}.controller.ts`, controllerContent);
   }
 
   if (withRoutes) {
-    writeFile(
-      `${lcModel}.routes.ts`,
-      `import express from 'express';
+    let routeContent = `import express from 'express';
 import * as controller from './${lcModel}.controller';
 
 const router = express.Router();
@@ -183,10 +193,18 @@ router.post('/', controller.create);
 router.get('/:id', controller.getById);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.deleteOne);
+`;
+
+    customRoutes[modelName]?.forEach(({ method, path, name }) => {
+      routeContent += `
+router.${method.toLowerCase()}('${path}', controller.${name});`;
+    });
+
+    routeContent += `
 
 export default router;
-`
-    );
+`;
+    writeFile(`${lcModel}.routes.ts`, routeContent);
   }
 
   if (withSchema) {
