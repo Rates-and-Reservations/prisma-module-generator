@@ -1,5 +1,7 @@
 # 🛠 Prisma API Generator
 
+[![npm version](https://img.shields.io/npm/v/prisma-api-gen.svg)](https://www.npmjs.com/package/prisma-api-gen)
+
 This is a CLI tool for scaffolding module folders (service, controller, routes, schema) based on models in your `schema.prisma`. It supports optional grouping of models using `@group` comments for better folder organization.
 
 ---

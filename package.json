@@ -5,13 +5,40 @@
   "author": "Nimisoere Tekena-Lawson",
   "description": "Generate grouped modules, routes, tests, and OpenAPI docs from your Prisma schema",
   "main": "bin/generate-module.js",
+  "types": "bin/generate-module.d.ts",
   "bin": {
     "generate-modules": "./bin/generate-module.js"
   },
-  "prisma": {
-    "generator": {
-      "provider": "prisma-api-gen"
+  "exports": {
+    ".": "./bin/generate-module.js"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rates-and-Reservations/prisma-module-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Rates-and-Reservations/prisma-module-generator/issues"
+  },
+  "homepage": "https://github.com/Rates-and-Reservations/prisma-module-generator#readme",
+  "contributors": [
+    {
+      "name": "Nimisoere Tekena-Lawson",
+      "email": "lawson.nimi@gmail.com",
+      "url": "https://github.com/nimisoere"
     }
+  ],
+  "keywords": [
+    "prisma",
+    "generator",
+    "typescript",
+    "openapi",
+    "express",
+    "rest",
+    "api"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   },
   "scripts": {
     "build": "tsup src/generate-module.ts --out-dir bin --format esm --target node18 --minify",
@@ -26,6 +53,11 @@
     "access": "public"
   },
   "type": "module",
+  "prisma": {
+    "generator": {
+      "provider": "prisma-api-gen"
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.13.17",
     "@types/yargs": "^17.0.33",
@@ -35,5 +67,8 @@
   "dependencies": {
     "@prisma/generator-helper": "^6.5.0",
     "yargs": "^17.7.2"
+  },
+  "peerDependencies": {
+    "prisma": ">=5.0.0"
   }
 }
